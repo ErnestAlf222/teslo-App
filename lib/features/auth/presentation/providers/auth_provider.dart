@@ -1,17 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:teslo_shop/features/auth/domain/domain.dart';
 import 'package:teslo_shop/features/auth/infrastructure/infrastructure.dart';
+import 'package:teslo_shop/features/shared/infrastructure/services/key_value_storage_service.dart';
+import 'package:teslo_shop/features/shared/infrastructure/services/key_value_storage_service_impl.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authRepository = AuthRepositoryImpl();
-  return AuthNotifier(authRepository: authRepository);
+  final keyValueStorageService = KeyValueStorageServiceImpl();
+
+  return AuthNotifier(
+    authRepository: authRepository,
+    keyValueStorageService: keyValueStorageService,
+  );
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository authRepository;
+  final KeyValueStorageService keyValueStorageService;
+
   AuthNotifier({
     required this.authRepository,
-  }) : super(AuthState());
+    required this.keyValueStorageService,
+  }) : super(AuthState()){
+    checkAuthStatus();
+  }
 
   Future<void> loginUser(String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 500));
@@ -20,58 +32,67 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await authRepository.login(email, password);
       _setLoggedUser(user);
     } on CustomError catch (e) {
-      logOut(e.message);
-    } 
-    catch (e) {
-      logOut('Error no controlado');
+      logout(e.message);
+    } catch (e) {
+      logout('Error no controlado');
+    }
+
+    // final user = await authRepository.login(email, password);
+    // state =state.copyWith(user: user, authStatus: AuthStatus.authenticated)
+  }
+
+  void registerUser(String email, String password) async {}
+
+  void checkAuthStatus() async {
+    final token = await keyValueStorageService.getValue<String>('token');
+    if (token == null) return logout();
+    try {
+      final user = await authRepository.checkAuthStatus(token);
+      _setLoggedUser(user);
+    } catch (e) {
+      logout();
     }
   }
 
-  void registerUser(String email, String password, String name) async {}
-
-  void checkAuthStatus() async {}
-
-  // Establecer usuario
-  void _setLoggedUser(User user) {
-    // TODO: necesito guardar el token físicamente
+  void _setLoggedUser(User user) async {
+    // Guardar el token físicamente
+    await keyValueStorageService.setKeyValue('token', user.token);
     state = state.copyWith(
       user: user,
       authStatus: AuthStatus.authenticated,
     );
   }
 
-  Future<void> logOut([String? errorMessage]) async {
-    // TODO: Limpiar token
+  Future<void> logout([String? errorMessage]) async {
+    // limpiar token
+    await keyValueStorageService.removeKey('token');
     state = state.copyWith(
-        authStatus: AuthStatus.notAutheticated,
-        user: null,
-        errorMessage: errorMessage,
-      );
+      authStatus: AuthStatus.notAuthenticated,
+      user: null,
+      errorMessage: errorMessage,
+    );
   }
 }
 
-enum AuthStatus { checking, authenticated, notAutheticated }
+enum AuthStatus { checking, authenticated, notAuthenticated }
 
 class AuthState {
   final AuthStatus authStatus;
   final User? user;
   final String errorMessage;
 
-  AuthState({
-    this.authStatus = AuthStatus.checking,
-    this.user,
-    this.errorMessage = '',
-  });
+  AuthState(
+      {this.authStatus = AuthStatus.checking,
+      this.user,
+      this.errorMessage = ''});
 
   AuthState copyWith({
     AuthStatus? authStatus,
     User? user,
     String? errorMessage,
-  }) {
-    return AuthState(
-      authStatus: authStatus ?? this.authStatus,
-      user: user ?? this.user,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
+  }) =>
+      AuthState(
+          authStatus: authStatus ?? this.authStatus,
+          user: user ?? this.user,
+          errorMessage: errorMessage ?? this.errorMessage);
 }

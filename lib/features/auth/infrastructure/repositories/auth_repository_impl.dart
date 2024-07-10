@@ -1,11 +1,13 @@
 import 'package:teslo_shop/features/auth/domain/domain.dart';
-import 'package:teslo_shop/features/auth/infrastructure/infrastructure.dart';
+import '../infrastructure.dart';
+
 
 class AuthRepositoryImpl extends AuthRepository {
+
   final AuthDataSource dataSource;
 
   AuthRepositoryImpl({
-    AuthDataSource? dataSource,
+    AuthDataSource? dataSource
   }) : dataSource = dataSource ?? AuthDataSourceImpl();
 
   @override
@@ -20,6 +22,7 @@ class AuthRepositoryImpl extends AuthRepository {
 
   @override
   Future<User> register(String email, String password, String fullName) {
-    return register(email, password, fullName);
+    return dataSource.register(email, password, fullName);
   }
+
 }
