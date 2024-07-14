@@ -1,10 +1,11 @@
 
+
 import 'package:teslo_shop/features/auth/domain/entities/user.dart';
 
 class Product {
   String id;
   String title;
-  int price;
+  double price;
   String description;
   String slug;
   int stock;
