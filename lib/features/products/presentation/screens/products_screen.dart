@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:teslo_shop/features/products/presentation/providers/products_provider.dart';
 import 'package:teslo_shop/features/products/presentation/widgets/widgets.dart';
@@ -44,7 +45,12 @@ class _ProductsViewState extends ConsumerState {
   @override
   void initState() {
     super.initState();
-    ref.read(productsProvider.notifier).loadNextPage();
+    scrollController.addListener(() {
+      if ((scrollController.position.pixels + 400) >=
+          scrollController.position.maxScrollExtent) {
+        ref.read(productsProvider.notifier).loadNextPage();
+      }
+    });
   }
 
   @override
@@ -55,12 +61,12 @@ class _ProductsViewState extends ConsumerState {
 
   @override
   Widget build(BuildContext context) {
-
     final productsState = ref.watch(productsProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: MasonryGridView.count(
+        controller: scrollController,
         physics: const BouncingScrollPhysics(),
         crossAxisCount: 2,
         mainAxisSpacing: 20,
@@ -68,8 +74,9 @@ class _ProductsViewState extends ConsumerState {
         itemCount: productsState.products.length,
         itemBuilder: (context, index) {
           final product = productsState.products[index];
-          return ProductCard(product: product);
-
+          return GestureDetector(
+              onTap: () => context.push('/product/${product.id}'),
+              child: ProductCard(product: product));
         },
       ),
     );
