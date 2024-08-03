@@ -1,78 +1,140 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:formz/formz.dart';
+import 'package:teslo_shop/config/config.dart';
 import 'package:teslo_shop/features/products/domain/domain.dart';
+import 'package:teslo_shop/features/products/presentation/providers/products_provider.dart';
 import 'package:teslo_shop/features/shared/shared.dart';
 
+final productFormProvider = StateNotifierProvider.autoDispose
+    .family<ProductFormNotifier, ProductFormState, Product>((ref, product) {
+  // final createUpdateCallback =
+  //     ref.watch(productsRepositoryProvider).createUpdateProduct;
+  final createUpdateCallback = ref.watch(productsProvider.notifier).createOrUpdateProduct;
 
-class ProductFormNotifier extends StateNotifier<ProductFormState>{
+  return ProductFormNotifier(
+    product: product,
+    onSubmitCallback: createUpdateCallback,
+  );
+});
 
-  final void Function( Map<String, dynamic> productLike )? onSubmitCallback;
+class ProductFormNotifier extends StateNotifier<ProductFormState> {
+  final Future<bool> Function(Map<String, dynamic> productLike)?
+      onSubmitCallback;
   ProductFormNotifier({
     this.onSubmitCallback,
     required Product product,
-  }):super(
-    ProductFormState(
-      id:product.id,
-      title: Title.dirty(product.title),
-      slug: Slug.dirty(product.slug),
-      price: Price.dirty(product.price),
-      instock:Stock.dirty(product.stock),
-      sizes: product.sizes,
-      gender: product.gender,
-      description:product.description,
-      tags: product.tags.join(', '),
-      images:product.images,
-       
-    )
-  );
+  }) : super(ProductFormState(
+          id: product.id,
+          title: Title.dirty(product.title),
+          slug: Slug.dirty(product.slug),
+          price: Price.dirty(product.price),
+          instock: Stock.dirty(product.stock),
+          sizes: product.sizes,
+          gender: product.gender,
+          description: product.description,
+          tags: product.tags.join(', '),
+          images: product.images,
+        ));
 
-  void onTitleChanges(String value){
-    state = state.copyWith(
-      title: Title.dirty(value),
-      isFormValid: Formz.validate([
-        Title.dirty(value),
-        Slug.dirty(state.slug!.value),
-        Price.dirty(state.price!.value),
-        Stock.dirty(state.instock.value)
-      ])
-    );
+  Future<bool> onFormSubmit() async {
+    _tochedEverything();
+    if (!state.isFormValid) return false;
+    if (onSubmitCallback == null) return false;
+
+    final productLike = {
+      'id': state.id,
+      'title': state.title!.value,
+      'price': state.price!.value,
+      'description': state.description,
+      'slug': state.slug!.value,
+      'stock': state.instock.value,
+      'sizes': state.sizes,
+      'gender': state.gender,
+      'tags': state.tags.split(','),
+      'images': state.images
+          .map((image) =>
+              image.replaceAll('${Environment.apiUrl}/files/product', ''))
+          .toList()
+    };
+    try {
+      return await onSubmitCallback!(productLike);
+      
+    } catch (e) {
+      return false;
+    }
   }
-  void onSlugChanges(String value){
+
+  void _tochedEverything() {
     state = state.copyWith(
-      slug: Slug.dirty(value),
-      isFormValid: Formz.validate([
-        Title.dirty(state.title!.value),
-        Slug.dirty(value),
-        Price.dirty(state.price!.value),
-        Stock.dirty(state.instock.value)
-      ])
-    );
-  }
-  void onPricesChanges(double value){
-    state = state.copyWith(
-      price: Price.dirty(value),
-      isFormValid: Formz.validate([
-        Title.dirty(state.title!.value),
-        Slug.dirty(state.slug!.value),
-        Price.dirty(value),
-        Stock.dirty(state.instock.value)
-      ])
-    );
-  }
-  void onStockChanged(int value){
-    state = state.copyWith(
-      instock: Stock.dirty(value),
       isFormValid: Formz.validate([
         Title.dirty(state.title!.value),
         Slug.dirty(state.slug!.value),
         Price.dirty(state.price!.value),
-        Stock.dirty(value)
-      ])
+        Stock.dirty(state.instock.value),
+      ]),
     );
   }
 
+  void onTitleChanges(String value) {
+    state = state.copyWith(
+        title: Title.dirty(value),
+        isFormValid: Formz.validate([
+          Title.dirty(value),
+          Slug.dirty(state.slug!.value),
+          Price.dirty(state.price!.value),
+          Stock.dirty(state.instock.value)
+        ]));
+  }
+
+  void onSlugChanges(String value) {
+    state = state.copyWith(
+        slug: Slug.dirty(value),
+        isFormValid: Formz.validate([
+          Title.dirty(state.title!.value),
+          Slug.dirty(value),
+          Price.dirty(state.price!.value),
+          Stock.dirty(state.instock.value)
+        ]));
+  }
+
+  void onPricesChanges(double value) {
+    state = state.copyWith(
+        price: Price.dirty(value),
+        isFormValid: Formz.validate([
+          Title.dirty(state.title!.value),
+          Slug.dirty(state.slug!.value),
+          Price.dirty(value),
+          Stock.dirty(state.instock.value)
+        ]));
+  }
+
+  void onStockChanged(int value) {
+    state = state.copyWith(
+        instock: Stock.dirty(value),
+        isFormValid: Formz.validate([
+          Title.dirty(state.title!.value),
+          Slug.dirty(state.slug!.value),
+          Price.dirty(state.price!.value),
+          Stock.dirty(value)
+        ]));
+  }
+
+  void onSizesChanged(List<String> sizes) {
+    state = state.copyWith(sizes: sizes);
+  }
+
+  void onGenderChanges(String gender) {
+    state = state.copyWith(gender: gender);
+  }
+
+  void onDescriptionChanges(String description) {
+    state = state.copyWith(description: description);
+  }
+
+  void onTagsChanges(String tags) {
+    state = state.copyWith(tags: tags);
+  }
 }
-
 
 class ProductFormState {
   final bool isFormValid;

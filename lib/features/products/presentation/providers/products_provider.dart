@@ -3,12 +3,12 @@ import 'package:teslo_shop/features/products/domain/domain.dart';
 import 'package:teslo_shop/features/products/presentation/providers/providers.dart';
 
 // Provider
-final productsProvider = StateNotifierProvider<ProductsNotifier,ProductsState>((ref) {
+final productsProvider =
+    StateNotifierProvider<ProductsNotifier, ProductsState>((ref) {
   final productsRepository = ref.watch(productsRepositoryProvider);
 
-  return ProductsNotifier(productsRepository:productsRepository );
+  return ProductsNotifier(productsRepository: productsRepository);
 });
-
 
 // Notifier
 class ProductsNotifier extends StateNotifier<ProductsState> {
@@ -18,31 +18,49 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
     loadNextPage();
   }
 
-  Future loadNextPage() async {
+  Future<bool> createOrUpdateProduct(Map<String, dynamic> productLike) async {
+    try {
+      final product = await productsRepository.createUpdateProduct(productLike);
+      final isProductInList =
+          state.products.any((element) => element.id == product.id);
 
+      if (!isProductInList) {
+        state = state.copyWith(
+          products: [...state.products, product],
+        );
+        return true;
+      }
+
+      state = state.copyWith(
+          products: state.products
+              .map((element) => (element.id == product.id) ? product : element)
+              .toList());
+      return true;
+      
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future loadNextPage() async {
     if (state.isLoading || state.isLastPage) return;
-    state = state.copyWith(
-      isLoading: true
-    );
+    state = state.copyWith(isLoading: true);
 
     final products = await productsRepository.getProductsByPage(
         limit: state.limit, offset: state.offset);
-    
+
     if (products.isEmpty) {
       state = state.copyWith(
         isLoading: false,
         isLastPage: true,
-
       );
       return;
-      
     }
     state = state.copyWith(
-      isLastPage: false,
-      isLoading: false,
-      offset: state.offset + 10,
-      products: [...state.products, ...products]
-    );
+        isLastPage: false,
+        isLoading: false,
+        offset: state.offset + 10,
+        products: [...state.products, ...products]);
   }
 }
 
