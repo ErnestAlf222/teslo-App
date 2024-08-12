@@ -9,7 +9,8 @@ final productFormProvider = StateNotifierProvider.autoDispose
     .family<ProductFormNotifier, ProductFormState, Product>((ref, product) {
   // final createUpdateCallback =
   //     ref.watch(productsRepositoryProvider).createUpdateProduct;
-  final createUpdateCallback = ref.watch(productsProvider.notifier).createOrUpdateProduct;
+  final createUpdateCallback =
+      ref.watch(productsProvider.notifier).createOrUpdateProduct;
 
   return ProductFormNotifier(
     product: product,
@@ -42,7 +43,7 @@ class ProductFormNotifier extends StateNotifier<ProductFormState> {
     if (onSubmitCallback == null) return false;
 
     final productLike = {
-      'id': state.id,
+      'id': (state.id == 'new') ? null : state.id,
       'title': state.title!.value,
       'price': state.price!.value,
       'description': state.description,
@@ -53,12 +54,11 @@ class ProductFormNotifier extends StateNotifier<ProductFormState> {
       'tags': state.tags.split(','),
       'images': state.images
           .map((image) =>
-              image.replaceAll('${Environment.apiUrl}/files/product', ''))
+              image.replaceAll('${Environment.apiUrl}/files/product/', ''))
           .toList()
     };
     try {
       return await onSubmitCallback!(productLike);
-      
     } catch (e) {
       return false;
     }
@@ -73,6 +73,13 @@ class ProductFormNotifier extends StateNotifier<ProductFormState> {
         Stock.dirty(state.instock.value),
       ]),
     );
+  }
+
+  void udateProductImage(String path ){
+    state = state.copyWith(
+      images: [...state.images, path]
+    );
+
   }
 
   void onTitleChanges(String value) {
